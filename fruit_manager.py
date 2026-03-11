@@ -8,7 +8,9 @@ INVENTAIRE_PATH = os.path.join(DATA_DIR, "inventaire.json")
 TRESORERIE_PATH = os.path.join(DATA_DIR, "tresorerie.txt")
 
 
-def enregistrer_tresorerie_historique(tresorerie, fichier="data/tresorerie_history.json"):
+def enregistrer_tresorerie_historique(
+    tresorerie, fichier="data/tresorerie_history.json"
+):
     historique = []
     if os.path.exists(fichier):
         with open(fichier, "r") as f:
@@ -16,9 +18,12 @@ def enregistrer_tresorerie_historique(tresorerie, fichier="data/tresorerie_histo
                 historique = json.load(f)
             except:
                 historique = []
-    historique.append({"timestamp": datetime.datetime.now().isoformat(), "tresorerie": tresorerie})
+    historique.append(
+        {"timestamp": datetime.datetime.now().isoformat(), "tresorerie": tresorerie}
+    )
     with open(fichier, "w") as f:
         json.dump(historique, f)
+
 
 def lire_tresorerie_historique(fichier="data/tresorerie_history.json"):
     if os.path.exists(fichier):
@@ -38,11 +43,11 @@ def ouvrir_prix(path=PRIX_PATH):
             "mangues": 7,
             "ananas": 5,
             "noix de coco": 4,
-            "papayes": 3
+            "papayes": 3,
         }
-        with open(path, 'w', encoding='utf-8') as fichier:
+        with open(path, "w", encoding="utf-8") as fichier:
             json.dump(prix_defaut, fichier, ensure_ascii=False, indent=4)
-    with open(path, 'r', encoding='utf-8') as fichier:
+    with open(path, "r", encoding="utf-8") as fichier:
         return json.load(fichier)
 
 
@@ -54,30 +59,30 @@ def ouvrir_inventaire(path=INVENTAIRE_PATH):
             "mangues": 85,
             "ananas": 45,
             "noix de coco": 60,
-            "papayes": 30
+            "papayes": 30,
         }
-        with open(path, 'w', encoding='utf-8') as fichier:
+        with open(path, "w", encoding="utf-8") as fichier:
             json.dump(inventaire_defaut, fichier, ensure_ascii=False, indent=4)
-    with open(path, 'r', encoding='utf-8') as fichier:
+    with open(path, "r", encoding="utf-8") as fichier:
         return json.load(fichier)
 
 
 def ecrire_inventaire(inventaire, path="data/inventaire.json"):
-    with open(path, 'w', encoding='utf-8') as fichier:
+    with open(path, "w", encoding="utf-8") as fichier:
         json.dump(inventaire, fichier, ensure_ascii=False, indent=4)
 
 
 def ouvrir_tresorerie(path=TRESORERIE_PATH):
     os.makedirs(DATA_DIR, exist_ok=True)
     if not os.path.exists(path):
-        with open(path, 'w', encoding='utf-8') as fichier:
+        with open(path, "w", encoding="utf-8") as fichier:
             json.dump(1000.0, fichier)
-    with open(path, 'r', encoding='utf-8') as fichier:
+    with open(path, "r", encoding="utf-8") as fichier:
         return json.load(fichier)
 
 
 def ecrire_tresorerie(tresorerie, path="data/tresorerie.txt"):
-    with open(path, 'w', encoding='utf-8') as fichier:
+    with open(path, "w", encoding="utf-8") as fichier:
         json.dump(tresorerie, fichier, ensure_ascii=False, indent=4)
 
 
@@ -93,7 +98,10 @@ def afficher_inventaire(inventaire):
 
 def recolter(inventaire, fruit, quantite):
     inventaire[fruit] = inventaire.get(fruit, 0) + quantite
-    message = {'status': 'success', 'text': f"\nRécolté {quantite} {fruit} supplémentaires !"}
+    message = {
+        "status": "success",
+        "text": f"\nRécolté {quantite} {fruit} supplémentaires !",
+    }
     return (inventaire, message)
 
 
@@ -102,10 +110,13 @@ def vendre(inventaire, fruit, quantite, tresorerie, prix):
         inventaire[fruit] -= quantite
         tresorerie += prix.get(fruit, 0) * quantite
         enregistrer_tresorerie_historique(tresorerie)
-        message = {'status': 'success', 'text': f"\nVendu {quantite} {fruit} !"}
+        message = {"status": "success", "text": f"\nVendu {quantite} {fruit} !"}
         return (inventaire, tresorerie, message)
     else:
-        message = {'status': 'error', 'text': f"\nPas assez de {fruit} pour en vendre {quantite}."}
+        message = {
+            "status": "error",
+            "text": f"\nPas assez de {fruit} pour en vendre {quantite}.",
+        }
         return (inventaire, tresorerie, message)
 
 
@@ -115,7 +126,9 @@ def vendre_tout(inventaire, tresorerie, prix):
         if quantite > 0:
             revenu = prix.get(fruit, 0) * quantite
             tresorerie += revenu
-            print(f"- {fruit.capitalize()} : vendu {quantite} unités pour {revenu:.2f} $")
+            print(
+                f"- {fruit.capitalize()} : vendu {quantite} unités pour {revenu:.2f} $"
+            )
             inventaire[fruit] = 0
     return inventaire, tresorerie
 
@@ -127,6 +140,7 @@ def valeur_stock(inventaire, prix):
         prix_unitaire = prix.get(fruit, 0)
         valeur[fruit] = quantite * prix_unitaire
     return valeur
+
 
 def dollar_to_euro(tresorerie):
     taux_de_change = 0.86
