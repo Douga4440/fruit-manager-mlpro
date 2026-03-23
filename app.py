@@ -70,7 +70,7 @@ st.pyplot(fig)
 ecrire_inventaire(inventaire)
 ecrire_tresorerie(tresorerie)
 
-# --- Gestion des commandes (vue gérant) ---
+# Gestion des commandes  
 st.divider()
 st.header("📋 Gestion des commandes clients")
 
@@ -92,7 +92,7 @@ tab_attente, tab_historique, tab_nouvelle, tab_stats = st.tabs(
 )
 
 
-# ---- Onglet : Commandes en attente ----
+# Onglet : Commandes en attente
 with tab_attente:
     if not en_attente:
         st.info("Aucune commande en attente.")
@@ -138,7 +138,7 @@ with tab_attente:
                         else:
                             st.error(msg["text"])
 
-# ---- Onglet : Historique complet ----
+# Onglet : Historique complet 
 with tab_historique:
     if not commandes:
         st.info("Aucune commande enregistrée.")
@@ -176,3 +176,93 @@ with tab_historique:
                         st.markdown(f"- {fruit.capitalize()} × {qte}")
                     st.markdown(f"**Total : {commande['total']:.2f} $**")
 
+# Onglet : Saisir une nouvelle commande
+with tab_nouvelle:
+    st.markdown("Enregistrez ici une commande passée par un client (téléphone, sur place, etc.)")
+    with st.form("form_nouvelle_commande"):
+        st.subheader("Informations client")
+        col_n1, col_n2 = st.columns(2)
+        with col_n1:
+            nom_client = st.text_input("Nom du client")
+            telephone = st.text_input("Téléphone")
+        with col_n2:
+            adresse = st.text_input("Adresse / Localité")
+
+        st.subheader("Panier")
+        panier = {}
+        cols_fruits = st.columns(len(inventaire))
+        for i, (fruit, stock) in enumerate(inventaire.items()):
+            with cols_fruits[i]:
+                qte = st.number_input(
+                    f"{fruit.capitalize()}\n(stock: {stock})",
+                    min_value=0,
+                    max_value=stock,
+                    step=1,
+                    key=f"panier_{fruit}"
+                )
+                if qte > 0:
+                    panier[fruit] = qte
+
+        total_preview = sum(panier.get(f, 0) * prix.get(f, 0) for f in panier)
+        st.markdown(f"**Total estimé : {total_preview:.2f} $**")
+
+        submitted = st.form_submit_button("📝 Enregistrer la commande")
+        if submitted:
+            if not nom_client.strip():
+                st.error("Le nom du client est obligatoire.")
+            elif not panier:
+                st.error("Le panier est vide. Sélectionnez au moins un fruit.")
+            else:
+                commande = passer_commande(nom_client.strip(), adresse.strip(), telephone.strip(), panier, prix)
+                st.success(f"Commande #{commande['id']} enregistrée pour {nom_client} — Total : {commande['total']:.2f} $")
+                st.rerun()
+
+# Onglet : Statistiques commandes
+with tab_stats:
+    if not commandes:
+        st.info("Pas encore de données de commandes.")
+    else:
+        st.subheader("Résumé des commandes")
+        col_s1, col_s2 = st.columns(2)
+
+        with col_s1:
+            # Répartition par statut
+            labels = ["En attente", "Validées", "Annulées"]
+            sizes = [len(en_attente), len(validees), len(annulees)]
+            if any(s > 0 for s in sizes):
+                fig_pie, ax_pie = plt.subplots()
+                ax_pie.pie(
+                    [s for s in sizes if s > 0],
+                    labels=[l for l, s in zip(labels, sizes) if s > 0],
+                    autopct="%1.0f%%",
+                    colors=["#f0a500", "#4caf50", "#f44336"]
+                )
+                ax_pie.set_title("Répartition par statut")
+                st.pyplot(fig_pie)
+
+        with col_s2:
+            # Fruits les plus commandés (commandes validées)
+            compteur_fruits = {}
+            for c in validees:
+                for fruit, qte in c["panier"].items():
+                    compteur_fruits[fruit] = compteur_fruits.get(fruit, 0) + qte
+            if compteur_fruits:
+                compteur_fruits = dict(sorted(compteur_fruits.items(), key=lambda x: x[1], reverse=True))
+                fig_bar, ax_bar = plt.subplots()
+                ax_bar.bar(compteur_fruits.keys(), compteur_fruits.values(), color="steelblue", edgecolor="k")
+                ax_bar.set_xlabel("Fruit")
+                ax_bar.set_ylabel("Quantité vendue")
+                ax_bar.set_title("Fruits les plus commandés (validés)")
+                st.pyplot(fig_bar)
+
+        # Top clients
+        if validees:
+            st.subheader("Top clients (CA validé)")
+            ca_clients = {}
+            for c in validees:
+                ca_clients[c["client"]] = ca_clients.get(c["client"], 0) + c["total"]
+            ca_clients = dict(sorted(ca_clients.items(), key=lambda x: x[1], reverse=True))
+            df_clients = pd.DataFrame(
+                {"Client": list(ca_clients.keys()), "CA (validé) $": [round(v, 2) for v in ca_clients.values()]}
+            )
+            st.dataframe(df_clients, use_container_width=True, hide_index=True)
