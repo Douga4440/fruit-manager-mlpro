@@ -92,3 +92,87 @@ tab_attente, tab_historique, tab_nouvelle, tab_stats = st.tabs(
 )
 
 
+# ---- Onglet : Commandes en attente ----
+with tab_attente:
+    if not en_attente:
+        st.info("Aucune commande en attente.")
+    else:
+        st.markdown(f"**{len(en_attente)} commande(s) à traiter**")
+        for commande in en_attente:
+            with st.expander(
+                f"📦 #{commande['id']} — {commande['client']} — {commande['total']:.2f} $  |  {commande['timestamp'][:10]}"
+            ):
+                col_info, col_panier = st.columns([1, 1])
+                with col_info:
+                    st.markdown("**Informations client**")
+                    st.markdown(f"- Nom : {commande['client']}")
+                    st.markdown(f"- Téléphone : {commande['telephone']}")
+                    st.markdown(f"- Adresse : {commande.get('adresse', '—')}")
+                    st.markdown(f"- Date : {commande['timestamp'][:16].replace('T', ' à ')}")
+                with col_panier:
+                    st.markdown("**Détail du panier**")
+                    for fruit, qte in commande["panier"].items():
+                        prix_fruit = prix.get(fruit, 0)
+                        st.markdown(f"- {fruit.capitalize()} × {qte}  ({prix_fruit * qte:.2f} $)")
+                    st.markdown(f"**Total : {commande['total']:.2f} $**")
+
+                col_valider, col_annuler = st.columns(2)
+                with col_valider:
+                    if st.button("✅ Valider la commande", key=f"valider_{commande['id']}"):
+                        inv = ouvrir_inventaire()
+                        tres = ouvrir_tresorerie()
+                        inv, tres, msg = valider_commande(commande["id"], inv, tres, prix)
+                        if msg["status"] == "success":
+                            ecrire_inventaire(inv)
+                            ecrire_tresorerie(tres)
+                            st.success(msg["text"])
+                            st.rerun()
+                        else:
+                            st.error(msg["text"])
+                with col_annuler:
+                    if st.button("❌ Annuler la commande", key=f"annuler_{commande['id']}"):
+                        msg = annuler_commande(commande["id"])
+                        if msg["status"] == "success":
+                            st.warning(msg["text"])
+                            st.rerun()
+                        else:
+                            st.error(msg["text"])
+
+# ---- Onglet : Historique complet ----
+with tab_historique:
+    if not commandes:
+        st.info("Aucune commande enregistrée.")
+    else:
+        filtre_statut = st.selectbox(
+            "Filtrer par statut",
+            ["Toutes", "en_attente", "validée", "annulée"],
+            key="filtre_historique"
+        )
+        commandes_filtrees = commandes if filtre_statut == "Toutes" else [
+            c for c in commandes if c["statut"] == filtre_statut
+        ]
+
+        filtre_client = st.text_input("Rechercher par nom client", key="filtre_client").strip().lower()
+        if filtre_client:
+            commandes_filtrees = [c for c in commandes_filtrees if filtre_client in c["client"].lower()]
+
+        st.markdown(f"**{len(commandes_filtrees)} commande(s) affichée(s)**")
+
+        for commande in sorted(commandes_filtrees, key=lambda c: c["timestamp"], reverse=True):
+            statut_icon = {"en_attente": "⏳", "validée": "✅", "annulée": "❌"}.get(commande["statut"], "•")
+            with st.expander(
+                f"{statut_icon} #{commande['id']} — {commande['client']} — {commande['total']:.2f} $  |  {commande['timestamp'][:10]}"
+            ):
+                col_i, col_p = st.columns([1, 1])
+                with col_i:
+                    st.markdown(f"- **Client :** {commande['client']}")
+                    st.markdown(f"- **Téléphone :** {commande['telephone']}")
+                    st.markdown(f"- **Adresse :** {commande.get('adresse', '—')}")
+                    st.markdown(f"- **Date :** {commande['timestamp'][:16].replace('T', ' à ')}")
+                    st.markdown(f"- **Statut :** `{commande['statut']}`")
+                with col_p:
+                    st.markdown("**Panier :**")
+                    for fruit, qte in commande["panier"].items():
+                        st.markdown(f"- {fruit.capitalize()} × {qte}")
+                    st.markdown(f"**Total : {commande['total']:.2f} $**")
+
