@@ -1,11 +1,13 @@
 import json
 import os
 import datetime
+import uuid
 
 DATA_DIR = "data"
 PRIX_PATH = os.path.join(DATA_DIR, "prix.json")
 INVENTAIRE_PATH = os.path.join(DATA_DIR, "inventaire.json")
 TRESORERIE_PATH = os.path.join(DATA_DIR, "tresorerie.txt")
+COMMANDES_PATH = os.path.join(DATA_DIR, "commandes.json")
 
 
 def enregistrer_tresorerie_historique(
@@ -146,6 +148,74 @@ def dollar_to_euro(tresorerie):
     taux_de_change = 0.86
     tresorerie_euro = tresorerie * taux_de_change
     return tresorerie_euro
+
+
+# --- Fonction de gestion des commandes clients ---
+def lire_commandes(path=COMMANDES_PATH):
+    os.makedirs(DATA_DIR, exist_ok=True)
+    if not os.path.exists(path):
+        return []
+    with open(path, "r", encoding="utf-8") as f:
+        try:
+            return json.load(f)
+        except:
+            return []
+
+
+def ecrire_commandes(commandes, path=COMMANDES_PATH):
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(commandes, f, ensure_ascii=False, indent=4)
+
+
+def passer_commande(nom_client, adresse, telephone, panier, prix):
+    total = sum(panier.get(fruit, 0) * prix.get(fruit, 0) for fruit in panier)
+    commande = {
+        "id": str(uuid.uuid4())[:8].upper(),
+        "timestamp": datetime.datetime.now().isoformat(),
+        "client": nom_client,
+        "adresse": adresse,
+        "telephone": telephone,
+        "panier": panier,
+        "total": total,
+        "statut": "en_attente",
+    }
+    commandes = lire_commandes()
+    commandes.append(commande)
+    ecrire_commandes(commandes)
+    return commande
+
+
+def valider_commande(commande_id, inventaire, tresorerie, prix):
+    commandes = lire_commandes()
+    for commande in commandes:
+        if commande["id"] == commande_id and commande["statut"] == "en_attente":
+            for fruit, qte in commande["panier"].items():
+                if inventaire.get(fruit, 0) < qte:
+                    return inventaire, tresorerie, {
+                        "status": "error",
+                        "text": f"Stock insuffisant pour {fruit} (dispo: {inventaire.get(fruit, 0)}, demandé: {qte})",
+                    }
+            for fruit, qte in commande["panier"].items():
+                inventaire[fruit] -= qte
+            tresorerie += commande["total"]
+            enregistrer_tresorerie_historique(tresorerie)
+            commande["statut"] = "validée"
+            ecrire_commandes(commandes)
+            return inventaire, tresorerie, {
+                "status": "success",
+                "text": f"Commande #{commande_id} validée ! +{commande['total']:.2f} $",
+            }
+    return inventaire, tresorerie, {"status": "error", "text": "Commande introuvable."}
+
+
+def annuler_commande(commande_id):
+    commandes = lire_commandes()
+    for commande in commandes:
+        if commande["id"] == commande_id and commande["statut"] == "en_attente":
+            commande["statut"] = "annulée"
+            ecrire_commandes(commandes)
+            return {"status": "success", "text": f"Commande #{commande_id} annulée."}
+    return {"status": "error", "text": "Commande introuvable ou déjà traitée."}
 
 
 if __name__ == "__main__":

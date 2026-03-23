@@ -69,3 +69,26 @@ st.pyplot(fig)
 
 ecrire_inventaire(inventaire)
 ecrire_tresorerie(tresorerie)
+
+# --- Gestion des commandes (vue gérant) ---
+st.divider()
+st.header("📋 Gestion des commandes clients")
+
+commandes = lire_commandes()
+en_attente = [c for c in commandes if c["statut"] == "en_attente"]
+validees = [c for c in commandes if c["statut"] == "validée"]
+annulees = [c for c in commandes if c["statut"] == "annulée"]
+ca_commandes = sum(c["total"] for c in validees)
+
+# Métriques rapides
+col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+col_m1.metric("⏳ En attente", len(en_attente))
+col_m2.metric("✅ Validées", len(validees))
+col_m3.metric("❌ Annulées", len(annulees))
+col_m4.metric("💵 CA commandes", f"{ca_commandes:.2f} $")
+
+tab_attente, tab_historique, tab_nouvelle, tab_stats = st.tabs(
+    ["⏳ En attente", "📂 Historique", "➕ Nouvelle commande", "📊 Statistiques"]
+)
+
+
